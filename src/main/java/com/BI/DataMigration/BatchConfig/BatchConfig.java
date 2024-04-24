@@ -12,6 +12,7 @@ import com.BI.DataMigration.mappers.TransactionRowMapper;
 import com.BI.DataMigration.models.Parties;
 import com.BI.DataMigration.models.Transaction;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -21,11 +22,18 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.database.*;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
+import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
+import org.springframework.batch.item.database.support.PostgresPagingQueryProvider;
 import org.springframework.batch.item.database.support.SqlServerPagingQueryProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -54,11 +62,13 @@ public class BatchConfig {
     @Bean
     public JdbcPagingItemReader<Transaction> transactionJdbcPagingItemReader() throws Exception {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setUrl(configuration.getString("datasource_url"));
-        dataSource.setUsername(configuration.getString("datasource_username"));
-        dataSource.setPassword(configuration.getString("datasource_password"));
-        dataSource.setDriverClassName(configuration.getString("datasource_driver"));
+        dataSource.setUrl(configuration.getString("reader_datasource_url"));
+        dataSource.setUsername(configuration.getString("reader_datasource_username"));
+        dataSource.setPassword(configuration.getString("reader_datasource_password"));
+        dataSource.setDriverClassName(configuration.getString("reader_datasource_driver"));
+
         JdbcPagingItemReader<Transaction> transactionJdbcPagingItemReader = new JdbcPagingItemReader<>();
+
         transactionJdbcPagingItemReader.setDataSource(dataSource);
         transactionJdbcPagingItemReader.setQueryProvider(Objects.requireNonNull(queryProviderFactoryBean()));
         transactionJdbcPagingItemReader.setRowMapper(new TransactionRowMapper());
@@ -69,10 +79,10 @@ public class BatchConfig {
     @Bean
     public JdbcPagingItemReader<Parties> partiesJdbcPagingItemReader() throws Exception {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setUrl(configuration.getString("datasource_url"));
-        dataSource.setUsername(configuration.getString("datasource_username"));
-        dataSource.setPassword(configuration.getString("datasource_password"));
-        dataSource.setDriverClassName(configuration.getString("datasource_driver"));
+        dataSource.setUrl(configuration.getString("writer_datasource_url"));
+        dataSource.setUsername(configuration.getString("writer_datasource_username"));
+        dataSource.setPassword(configuration.getString("writer_datasource_password"));
+        dataSource.setDriverClassName(configuration.getString("writer_datasource_driver"));
         JdbcPagingItemReader<Parties> partiesJdbcPagingItemReader = new JdbcPagingItemReader<>();
         partiesJdbcPagingItemReader.setDataSource(dataSource);
         partiesJdbcPagingItemReader.setQueryProvider(Objects.requireNonNull(PartiesQueryProviderFactoryBean()));
@@ -84,11 +94,6 @@ public class BatchConfig {
 
     @Bean
     public SqlServerPagingQueryProvider queryProviderFactoryBean(){
-//        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-//        dataSource.setUrl(configuration.getString("datasource_url"));
-//        dataSource.setUsername(configuration.getString("datasource_username"));
-//        dataSource.setPassword(configuration.getString("datasource_password"));
-//        dataSource.setDriverClassName(configuration.getString("datasource_driver"));
         Map<String, Order> sort = new HashMap<>();
         sort.put("id",Order.ASCENDING);
         SqlServerPagingQueryProvider provider= new SqlServerPagingQueryProvider();
@@ -98,6 +103,8 @@ public class BatchConfig {
         System.out.println(provider);
         return provider;
     }
+
+
 
     @Bean
     public SqlServerPagingQueryProvider PartiesQueryProviderFactoryBean(){
@@ -161,6 +168,7 @@ public class BatchConfig {
     }
 
 
+
     @Bean
     public RepositoryItemWriter<Transaction> destinationWrite(){
 
@@ -171,6 +179,22 @@ public class BatchConfig {
 
     }
 
+
+    @Bean
+    public JdbcBatchItemWriter<Transaction> jdbcBatchItemWriter(){
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setUrl(configuration.getString("writer_datasource_url"));
+        dataSource.setUsername(configuration.getString("writer_datasource_username"));
+        dataSource.setPassword(configuration.getString("writer_datasource_password"));
+        dataSource.setDriverClassName(configuration.getString("writer_datasource_driver"));
+
+        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
+        namedParameterJdbcTemplate.update("INSERT INTO TRANSACTION () VALUES (? ?)", new BeanPropertySqlParameterSource(Transaction.class));
+
+       return new JdbcBatchItemWriterBuilder<Transaction>()
+                .namedParametersJdbcTemplate(namedParameterJdbcTemplate)
+                .build();
+    }
 
 @Bean
 public Step importStep() throws Exception {
