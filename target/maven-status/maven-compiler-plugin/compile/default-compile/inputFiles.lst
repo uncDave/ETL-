@@ -1,0 +1,15 @@
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Listener/TransactionProcessListner.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Processors/TransactionProcessor.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/job/mssqlToPostgresJob.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/mappers/TransactionRowMapper.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Repository/TransactionRepository.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/DataMigrationApplication.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/config/BatchConfig.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/models/Parties.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/config/DataSourceConfig.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Processors/PartyProcessor.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Listener/TransactionItemWriteListner.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/models/Transaction.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Repository/PartiesRepository.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/mappers/PartiesRowmapper.java
+/Users/macbook/Desktop/BIDataMigration/src/main/java/com/BI/DataMigration/Listener/TransactionItemReadListner.java
