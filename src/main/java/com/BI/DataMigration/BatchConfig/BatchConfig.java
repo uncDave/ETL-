@@ -32,6 +32,7 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -108,11 +109,6 @@ public class BatchConfig {
 
     @Bean
     public SqlServerPagingQueryProvider PartiesQueryProviderFactoryBean(){
-//        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-//        dataSource.setUrl(configuration.getString("datasource_url"));
-//        dataSource.setUsername(configuration.getString("datasource_username"));
-//        dataSource.setPassword(configuration.getString("datasource_password"));
-//        dataSource.setDriverClassName(configuration.getString("datasource_driver"));
         Map<String, Order> sort = new HashMap<>();
         sort.put("id",Order.ASCENDING);
         SqlServerPagingQueryProvider provider= new SqlServerPagingQueryProvider();
@@ -124,76 +120,66 @@ public class BatchConfig {
     }
 
 
-    @Bean
-    public RepositoryItemWriter<Transaction> write(){
-
-        RepositoryItemWriter<Transaction > writer = new RepositoryItemWriter<>();
-        writer.setRepository(transactionRepository);
-        writer.setMethodName("save");
-        return writer;
-    }
-
-    @Bean
-    public RepositoryItemWriter<Parties> writeToParties(){
-
-        RepositoryItemWriter<Parties > Partywriter = new RepositoryItemWriter<>();
-        Partywriter.setRepository(partiesRepository);
-        Partywriter.setMethodName("save");
-        return Partywriter;
-    }
-
-
-
 //    @Bean
-//    public JdbcPagingItemReader<Parties> partiesJdbcPagingItemReader(){
-//        JdbcPagingItemReader<Parties> partiesJdbcPagingItemReader = new JdbcPagingItemReader<>();
-//        partiesJdbcPagingItemReader.setDataSource(dataSource);
-////        partiesJdbcPagingItemReader.setQueryProvider(new MyPagingQueryProvider());
-//        partiesJdbcPagingItemReader.setRowMapper(new PartiesRowmapper());
-//        return partiesJdbcPagingItemReader;
+//    public RepositoryItemWriter<Transaction> write(){
 //
+//        RepositoryItemWriter<Transaction > writer = new RepositoryItemWriter<>();
+//        writer.setRepository(transactionRepository);
+//        writer.setMethodName("save");
+//        return writer;
 //    }
 
-    @Bean
-    public TaskExecutor taskExecutor(){
-//        try{
-//            int No_of_threads  = configuration.getInt("number_of_execution_threads");
-            SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor();
-            asyncTaskExecutor.setConcurrencyLimit(configuration.getInt("number_of_execution_threads"));
-            return asyncTaskExecutor;
-//        }catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
+//    @Bean
+//    public RepositoryItemWriter<Parties> writeToParties(){
+//
+//        RepositoryItemWriter<Parties > Partywriter = new RepositoryItemWriter<>();
+//        Partywriter.setRepository(partiesRepository);
+//        Partywriter.setMethodName("save");
+//        return Partywriter;
+//    }
 
-    }
+
 
 
 
     @Bean
-    public RepositoryItemWriter<Transaction> destinationWrite(){
-
-        RepositoryItemWriter<Transaction > writer = new RepositoryItemWriter<>();
-        writer.setRepository(transactionRepository);
-        writer.setMethodName("save");
-        return writer;
-
-    }
-
-
-    @Bean
-    public JdbcBatchItemWriter<Transaction> jdbcBatchItemWriter(){
+    public JdbcBatchItemWriter<Transaction> TransactionItemWriter(){
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setUrl(configuration.getString("writer_datasource_url"));
         dataSource.setUsername(configuration.getString("writer_datasource_username"));
         dataSource.setPassword(configuration.getString("writer_datasource_password"));
         dataSource.setDriverClassName(configuration.getString("writer_datasource_driver"));
 
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
-        namedParameterJdbcTemplate.update("INSERT INTO TRANSACTION () VALUES (? ?)", new BeanPropertySqlParameterSource(Transaction.class));
+        JdbcBatchItemWriter<Transaction> ItemWriter = new JdbcBatchItemWriter<>();
+        ItemWriter.setDataSource(dataSource);
+        ItemWriter.setSql("INSERT INTO TRANSACTIONS(id,amount) VALUES(:id,:amount)");
+        ItemWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<Transaction>());
+        ItemWriter.afterPropertiesSet();
+        return ItemWriter;
 
-       return new JdbcBatchItemWriterBuilder<Transaction>()
-                .namedParametersJdbcTemplate(namedParameterJdbcTemplate)
-                .build();
+
+
+
+//        NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
+////        namedParameterJdbcTemplate.update("INSERT INTO TRANSACTIONS (id,amount) VALUES (:id,:amount)", new BeanPropertySqlParameterSource(Transaction.class));
+//        namedParameterJdbcTemplate.update("INSERT INTO TRANSACTION (id, amount) VALUES (:id, :amount)", new MapSqlParameterSource(Map.of("id", transaction.getId(), "amount", transaction.getAmount())));
+//
+//       return new JdbcBatchItemWriterBuilder<Transaction>()
+//                .namedParametersJdbcTemplate(namedParameterJdbcTemplate)
+//                .build();
+    }
+
+    @Bean
+    public TaskExecutor taskExecutor(){
+//        try{
+//            int No_of_threads  = configuration.getInt("number_of_execution_threads");
+        SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor();
+        asyncTaskExecutor.setConcurrencyLimit(configuration.getInt("number_of_execution_threads"));
+        return asyncTaskExecutor;
+//        }catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+
     }
 
 @Bean
@@ -203,7 +189,7 @@ public Step importStep() throws Exception {
             .<Transaction, Transaction>chunk(configuration.getInt("transaction_chunk_size"), platformTransactionManager)
             .reader(transactionJdbcPagingItemReader())
             .processor(new TransactionProcessor())
-            .writer(write())
+            .writer(TransactionItemWriter())
             .faultTolerant()
             .taskExecutor(taskExecutor())
             .listener(new TransactionItemReadListener())
@@ -212,17 +198,17 @@ public Step importStep() throws Exception {
             .build();
 }
 
-    @Bean
-    public Step PartyStep() throws Exception {
-        return new StepBuilder("partyMigration", jobRepository)
-                .<Parties, Parties>chunk(configuration.getInt("parties_chunk_size"), platformTransactionManager)
-                .reader(partiesJdbcPagingItemReader())
-                .processor(new PartiesProcessor())
-                .writer(writeToParties())
-                .faultTolerant()
-                .taskExecutor(taskExecutor())
-                .build();
-    }
+//    @Bean
+//    public Step PartyStep() throws Exception {
+//        return new StepBuilder("partyMigration", jobRepository)
+//                .<Parties, Parties>chunk(configuration.getInt("parties_chunk_size"), platformTransactionManager)
+//                .reader(partiesJdbcPagingItemReader())
+//                .processor(new PartiesProcessor())
+//                .writer(writeToParties())
+//                .faultTolerant()
+//                .taskExecutor(taskExecutor())
+//                .build();
+//    }
 
     @Bean
     public Job runJob() throws Exception {
